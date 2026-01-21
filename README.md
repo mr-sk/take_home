@@ -8,6 +8,7 @@
 
 # Design
 * Streaming will likely be 1) more performant & 2) simpler (less internal state)
+* Sychronous processing of events for simplicity/debugging ease
 
 # TODO
 * [DONE] Create crate
@@ -29,3 +30,4 @@
 # Future Work
 * Implement more robust arg parsing
 * Build out test harness
+* Performance profiling
