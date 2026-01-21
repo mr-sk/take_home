@@ -1,6 +1,7 @@
 # Exam / Ben S 
 # Setup / Running
- `cargo run test_data/01_basic_deposits_withdrawals_input.csv `
+`cargo build`
+`cargo run test_data/01_basic_deposits_withdrawals_input.csv `
 
 # Testing
 `cargo run -- test_data/01_basic_deposits_withdrawals_input.csv > output.csv; diff output.csv test_data/01_basic_deposits_withdrawals_expected.csv`
@@ -31,3 +32,13 @@
 * Implement more robust arg parsing
 * Build out test harness
 * Performance profiling
+
+# Resources
+* CLI args: https://rust-cli.github.io/book/tutorial/cli-args.html
+* Open File handling: https://users.rust-lang.org/t/rust-file-open-error-handling/50681
+* BufRead: https://doc.rust-lang.org/std/io/struct.BufReader.html
+* Decimal/float handling crate research: 
+  * https://www.reddit.com/r/rust/comments/a7frqj/have_anyone_reviewed_any_of_the_decimal_crates/
+  * https://docs.rs/rust_decimal/latest/rust_decimal/
+* Transaction type enums: https://doc.rust-lang.org/reference/items/enumerations.html
+* LLM for syntax error debugging/help

@@ -11,7 +11,7 @@ use std::collections::HashMap;
 #[derive(Debug, Deserialize)]
 struct TransactionRow {
     #[serde(rename = "type")] // 'type' is reserved, fix serde mapping 'type' from .csv
-    tx_type: String,
+    tx_type: TransactionType,
     client: u16,
     tx: u32,
     amount: Option<Decimal>, // Handles 4 decimal precision and types like dispute
@@ -23,6 +23,17 @@ struct AccountRecord {
     available: Decimal,
     held: Decimal,
     locked: bool,
+}
+
+// These are the only transaction types currently supported
+#[derive(Debug, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+enum TransactionType {
+    Deposit,
+    Withdrawal,
+    Dispute,
+    Resolve,
+    Chargeback,
 }
 
 fn main() {
@@ -48,6 +59,7 @@ fn main() {
     let mut all_accounts: HashMap<u16, AccountRecord> = HashMap::new();
     let mut all_transactions: HashMap<u32, TransactionRow> = HashMap::new();
 
+    // Process each row at a time, minimizing memory consumption
     for row in transaction_csv_reader.deserialize::<TransactionRow>() {
         let transaction: TransactionRow = match row {
             Ok(transaction) => transaction,
@@ -62,11 +74,10 @@ fn main() {
         eprintln!("{:?}", transaction);
 
         // Check the type of operation this single transaction is
-        match transaction.tx_type.as_str() {
-            "deposit" => {
+        match transaction.tx_type {
+            TransactionType::Deposit => {
                 // Making an asumption here the account is created during deposit
                 // Look up the account or created a 'default' AccountRecord
-
                 let account = all_accounts.entry(transaction.client).or_default();
                 eprintln!("account: {:?}", account);
 
@@ -81,7 +92,7 @@ fn main() {
                 all_transactions.insert(transaction.tx, transaction);
                 eprintln!("[debug] {:?}", all_transactions);
             }
-            "withdrawal" => {
+            TransactionType::Withdrawal => {
                 // The account for the client ID must exist to preform a withdrawal
                 if let Some(account) = all_accounts.get_mut(&transaction.client) {
                     eprintln!("account: {:?}", account);
