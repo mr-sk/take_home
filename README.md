@@ -1,6 +1,7 @@
 # Exam / Ben S 
 # Setup / Running
 `cargo build`
+
 `cargo run test_data/01_basic_deposits_withdrawals_input.csv `
 
 # Testing
@@ -40,5 +41,7 @@
 * Decimal/float handling crate research: 
   * https://www.reddit.com/r/rust/comments/a7frqj/have_anyone_reviewed_any_of_the_decimal_crates/
   * https://docs.rs/rust_decimal/latest/rust_decimal/
-* Transaction type enums: https://doc.rust-lang.org/reference/items/enumerations.html
+* Transaction type enums: 
+  * https://doc.rust-lang.org/reference/items/enumerations.html
+  * https://doc.rust-lang.org/book/ch06-02-match.html
 * LLM for syntax error debugging/help
