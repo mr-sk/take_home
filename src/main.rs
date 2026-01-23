@@ -135,6 +135,19 @@ fn main() {
                     eprintln!("[!] Dispute references non-existent transaction: {}", transaction.tx);
                 }
             }
+            TransactionType::Resolve => {
+                  // Fetch the resolved transaction
+                  if let Some(resolved_transaction) = all_transactions.get_mut(&transaction.tx) {
+                        eprintln!("resolved_transaction: {:?}", resolved_transaction);
+
+                        if let Some(account) = all_accounts.get_mut(&transaction.client) {
+                            account.held -= resolved_transaction.amount.unwrap();
+                            account.available += resolved_transaction.amount.unwrap();
+                        }
+                  }else {
+                    eprintln!("[!] Resolve references non-existent transaction: {}", transaction.tx);
+                }
+            }
             _ => {
                 eprintln!("[!] Error, unknown type");
             }

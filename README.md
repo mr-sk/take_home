@@ -12,7 +12,8 @@ Deposit/Withdrawal:
 Deposit/Dispute:
 `cargo run -- test_data/03_dispute_input.csv > output.csv; diff output.csv test_data/03_dispute_expected.csv`
 
-
+Deposit/Dipute/Resolve:
+`cargo run -- test_data/04_dispute_resolve_input.csv > output.csv; diff output.csv test_data/04_dispute_resolve_expected.csv`
 
 
 # Design
