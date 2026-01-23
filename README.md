@@ -20,9 +20,15 @@
 * [DONE] Build core logic (deposit, withdrawal)
 * Build dispute logic (dispute, resolve, chargeback)
 * [DONE?] Output results to stdout (Need to fix eprintlns()/stderr maybe or just leave for debugging)
+* Confirm all decimals are good to 4 places
 * Handle edge cases
 * Test against test data
 * Clean up nested if's into more idoimatic rust ways
+  * Use csvwriter? for output
+  
+# BUGS
+* HashMap ordering non-deterministic - output varies / tests fail
+* 
 
 # Assumptions
 * I am _not_ hard failing if a bad row comes in from the CSV - if we think in the case of a bank or atm, I think they would raise this internally
@@ -35,6 +41,7 @@
 * Performance profiling
 
 # Resources
+* Rust In Action: https://www.manning.com/books/rust-in-action
 * CLI args: https://rust-cli.github.io/book/tutorial/cli-args.html
 * Open File handling: https://users.rust-lang.org/t/rust-file-open-error-handling/50681
 * BufRead: https://doc.rust-lang.org/std/io/struct.BufReader.html

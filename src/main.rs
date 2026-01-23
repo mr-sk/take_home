@@ -26,7 +26,7 @@ struct AccountRecord {
 }
 
 // These are the only transaction types currently supported
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize, PartialEq)] // TODO: Possibly remove PartialEq
 #[serde(rename_all = "lowercase")]
 enum TransactionType {
     Deposit,
@@ -64,7 +64,7 @@ fn main() {
         let transaction: TransactionRow = match row {
             Ok(transaction) => transaction,
             Err(err) => {
-                eprintln!(
+                eprintln!( // TODO: Look at error handling here
                     "[!] Row is being skipped, perhaps should hard fail: {}",
                     err
                 );
@@ -74,6 +74,7 @@ fn main() {
         eprintln!("{:?}", transaction);
 
         // Check the type of operation this single transaction is
+        // TODO: This is sort of gross and sprawling, needs to be streamlined!
         match transaction.tx_type {
             TransactionType::Deposit => {
                 // Making an asumption here the account is created during deposit
@@ -113,6 +114,25 @@ fn main() {
                     }
                 } else {
                     eprintln!("Account is required to wirthdraw");
+                }
+            }
+            TransactionType::Dispute => {
+                // Fetch the disputed transaction
+                if let Some(disputed_transaction) = all_transactions.get_mut(&transaction.tx) {
+                    eprintln!("disputed_transaction: {:?}", disputed_transaction);
+
+                    // Fetch the account
+                    if let Some(account) = all_accounts.get_mut(&transaction.client) {
+                        eprintln!("account: {:?}", account);
+
+                        // Per Specification, "clients available funds should decrease by amount disputed"
+                        account.available -= disputed_transaction.amount.unwrap();
+
+                        // Per Specification, "held funds thould increase by the amount disputed"
+                        account.held += disputed_transaction.amount.unwrap();
+                    }
+                } else {
+                    eprintln!("[!] Dispute references non-existent transaction: {}", transaction.tx);
                 }
             }
             _ => {
