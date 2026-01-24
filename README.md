@@ -53,13 +53,13 @@ Test all cases:
   * [DONE] Use csvwriter? for output
 
 # LLM Usage
-* At this (https://github.com/mr-sk/take_home/commit/1de1e32bd36f91ddaaab3f925662a2773b1f8599) commit, I had Claude generate a full integration testing suite 
+* At this (https://github.com/mr-sk/take_home/commit/1de1e32bd36f91ddaaab3f925662a2773b1f8599) commit, I had Claude generate a full integration testing suite:
   * It took a few iterations/feedback to get it correct/simple
-  * Previouly it generated csv files I used in my development loop
+  * Previouly it had generated csv files I used in my development loop
 * Now I had it write the tests/integration_tests.rs file. That led me to discover and fix the following bugs:
   * Double dispute could happen
   * Resetting chargeback state once frozen  
-* Now I have a working program, with good test coverage. I know the nesting in the match is gross and needs to be refactored. My approach would be to move the majority of the logic into functions that are called under each condition. This would streamline that block, encapsulate the logic and allow for unit testing. Unit testing is difficult now because it is one giant function. 
+* Now I have a working program, with good test coverage. I know the nesting in the match is gross and needs to be refactored. My approach would be to move the majority of the logic into functions that are called under each match. This would streamline that block, encapsulate the logic and allow for unit testing. Unit testing is difficult now because it is one giant function. 
 * At this commit (https://github.com/mr-sk/take_home/commit/383393a9279ef77f2f63e62f2e77b2f2415e10e9), I had Claude refactor the script with the above goals expressed. I took the ouput and moved one function at a time, making sure I could follow the logic, the logging was detailed (it had removed all arguments), and comments were correct (it dropped those as well). After each function was ported, I ran the integration test framework. 
 * At this commit (https://github.com/mr-sk/take_home/commit/74af650e7440e9f9aef6e4a345430a48026540e0), I had Claude build unit tests, and I broke them onto a src/tests.rs. I now had basic unit tests built, which passed via `cargo test`, then I had Claude generate:
   * Round trip tests: Do an operation and then undo it, validate we are back in start state
