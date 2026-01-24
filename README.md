@@ -25,6 +25,12 @@ Deposit/Dipute/Resolve:
 Chargeback (Fails because not implemented):
 `cargo run -- test_data/05_chargeback_input.csv > output.csv; diff output.csv test_data/05_chargeback_expected.csv`
 
+Decimal precision: 
+`cargo run -- test_data/09_decimal_precision_input.csv > output.csv; diff output.csv test_data/09_decimal_precision_expected.csv `
+
+Test all cases:
+`cargo run -- test_data/comprehensive_test_input.csv > output.csv; diff output.csv test_data/comprehensive_test_expected.csv`
+
 # Design
 * Streaming will likely be 1) more performant & 2) simpler (less internal state)
 * Sychronous processing of events for simplicity/debugging ease
@@ -39,7 +45,7 @@ Chargeback (Fails because not implemented):
 * [DONE] Implement chargeback
 * [DONE] Output results to stdout (Need to fix eprintlns()/stderr maybe or just leave for debugging)
 * [DONE] Change println into logging
-* Confirm all decimals are good to 4 places
+* [DONE] Confirm all decimals are good to 4 places
 * Handle edge cases
 * Test against test data
 * Clean up nested if's into more idoimatic rust ways
@@ -76,7 +82,7 @@ Chargeback (Fails because not implemented):
   * https://users.rust-lang.org/t/idiomatic-way-to-set-string-default-value-to-unwrap/29228
     * https://doc.rust-lang.org/rust-by-example/error/option_unwrap.html
     * https://doc.rust-lang.org/rust-by-example/std/result/question_mark.html
-Logging:
+* Logging:
   * https://crates.io/crates/log
   * https://crates.io/crates/env_logger
   * https://crates.io/crates/log2

@@ -88,6 +88,13 @@ fn main() {
                         // Only persist the account when there is a valid amount
                         let account = all_accounts.entry(transaction.client).or_default();
 
+                        // This isn't explicit in the Specification, but was uncovered during testing
+                        // If the account is locked, we cannot deposit to (or withdraw from) it
+                        if account.locked {
+                            error!("Account: {} is locked", transaction.client);
+                            continue;
+                        }
+                        
                         debug!("Deposit: {:?}", account);
 
                         account.available += amount;
@@ -105,6 +112,12 @@ fn main() {
             }
             TransactionType::Withdrawal => {
                 if let Some(account) = all_accounts.get_mut(&transaction.client) {
+                    // Apply the same logic in Deposit for a locked account
+                    if account.locked {
+                        error!("Account: {} is locked", transaction.client);
+                        continue;
+                    }
+
                     match transaction.amount {
                         Some(amount) if amount >= Decimal::ZERO => {
                             if account.available >= amount {
@@ -189,8 +202,39 @@ fn main() {
                     );
                 }
             }
-            _ => {
-                error!("Error, unknown type: {:?}", transaction.tx_type);
+            TransactionType::Chargeback => {
+                if let Some(chargeback_transaction) = all_transactions.get_mut(&transaction.tx) {
+                    // Verify chargeback request belongs to this client
+                    if chargeback_transaction.client != transaction.client {
+                        error!(
+                            "Client: {} cannot chargeback transaction belonging to client: {}",
+                            transaction.client, chargeback_transaction.client
+                        );
+                        continue;
+                    }
+
+                    // Specification says a 'chargeback is the final state of a dispute'
+                    // So account must be under 'dispute' to initiate a chargeback
+                    if !chargeback_transaction.disputed {
+                        error!(
+                            "Transaction: {} is not under dispute and cannot be charged back",
+                            transaction.tx
+                        );
+                        continue;
+                    }
+
+                    if let Some(amount) = chargeback_transaction.amount {
+                        if let Some(account) = all_accounts.get_mut(&transaction.client) {
+                            account.held -= amount;
+                            account.locked = true;
+                        }
+                    }
+                } else {
+                    error!(
+                        "Chargeback references non-existent transaction: {}",
+                        transaction.tx
+                    );
+                }
             }
         }
     }
