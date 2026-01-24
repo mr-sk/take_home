@@ -9,6 +9,9 @@ Using VCScode w/GitHub Co-Pilot disabled.
 # Setup / Running
 Clone the repo then `cargo test`
 
+Run as specificed in the Specification:
+* `cargo run -- test_data/01_basic_deposits_withdrawals_input.csv`
+
 Run a specific unit test:
 * `cargo test -- resolve_moves_funds_back_to_available`
 
