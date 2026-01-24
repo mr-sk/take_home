@@ -61,7 +61,7 @@ Test all cases:
   * Reseting chargeback state once frozen 
 I had failures when runnings tests in parallel, suspsected because of the lock for file logging. Running the tests `cargo test --test integration_tests -- --test-threads=1` all now pass successfully.  
 * Now I have a working program, with good test coverage. I know the nesting in the match is gross and needs to be refactored. My approach would be to move the majority of the logic into functions that are called under each condition. This would streamline that block, encapsulate the logic and allow for unit testing. Unit testing is difficult now because it is one giant function. 
-* At this commit (), I had Claude refactor the script with the above goals expressed. I took the ouput and moved one function at a time, making sure I could follow the logic, the logging was detailed (it had removed all arguments), and comments were correct (it dropped those as well). After each function was porterd, I ran the integration test framework. 
+* At this commit (https://github.com/mr-sk/take_home/commit/383393a9279ef77f2f63e62f2e77b2f2415e10e9), I had Claude refactor the script with the above goals expressed. I took the ouput and moved one function at a time, making sure I could follow the logic, the logging was detailed (it had removed all arguments), and comments were correct (it dropped those as well). After each function was porterd, I ran the integration test framework. 
 
 
 # Assumptions
