@@ -9,7 +9,7 @@ Using VCScode w/GitHub Co-Pilot disabled.
 # Setup / Running
 `cargo build`
 
-`cargo run test_data/01_basic_deposits_withdrawals_input.csv `
+`cargo test`
 
 # Manual Testing
 
@@ -58,8 +58,7 @@ Test all cases:
   * Previouly it generated csv files I used in my development loop
 * Now I had it write the tests/integration_tests.rs file. That led me to discover and fix the following bugs:
   * Double dispute could happen
-  * Reseting chargeback state once frozen 
-I had failures when runnings tests in parallel, suspsected because of the lock for file logging. Running the tests `cargo test --test integration_tests -- --test-threads=1` all now pass successfully.  
+  * Resetting chargeback state once frozen  
 * Now I have a working program, with good test coverage. I know the nesting in the match is gross and needs to be refactored. My approach would be to move the majority of the logic into functions that are called under each condition. This would streamline that block, encapsulate the logic and allow for unit testing. Unit testing is difficult now because it is one giant function. 
 * At this commit (https://github.com/mr-sk/take_home/commit/383393a9279ef77f2f63e62f2e77b2f2415e10e9), I had Claude refactor the script with the above goals expressed. I took the ouput and moved one function at a time, making sure I could follow the logic, the logging was detailed (it had removed all arguments), and comments were correct (it dropped those as well). After each function was ported, I ran the integration test framework. 
 * At this commit (https://github.com/mr-sk/take_home/commit/74af650e7440e9f9aef6e4a345430a48026540e0), I had Claude build unit tests, and I broke them onto a src/tests.rs. I now had basic unit tests built, which passed via `cargo test`, then I had Claude generate:

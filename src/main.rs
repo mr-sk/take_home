@@ -246,13 +246,13 @@ fn main() {
 
     let transaction_csv = std::env::args()
         .nth(1)
-        .expect("[!] transactions csv required");
+        .expect("Transactions csv required");
 
     // maybe look to use ? | have main() return a result
     let transaction_file = match File::open(transaction_csv) {
         Ok(transaction_file) => transaction_file,
         Err(err) => {
-            error!("[!] Invalid transactions file: {}", err);
+            error!("Invalid transactions file: {}", err);
             std::process::exit(1);
         }
     };
