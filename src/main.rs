@@ -3,10 +3,12 @@ use std::fs::File;
 use std::io::BufReader;
 
 use rust_decimal::Decimal;
-use rust_decimal_macros::dec;
+// use rust_decimal_macros::dec;
 use serde::Deserialize;
 
 use std::collections::HashMap;
+
+use log2::*;
 
 #[derive(Debug, Deserialize)]
 struct TransactionRow {
@@ -15,7 +17,9 @@ struct TransactionRow {
     client: u16,
     tx: u32,
     amount: Option<Decimal>, // Handles 4 decimal precision and types like dispute
-                             // that do not have an 'amount', per the Specification
+    // that do not have an 'amount', per the Specification
+    #[serde(skip)] // 'disputed' is not in the source CSV
+    disputed: bool,
 }
 
 #[derive(Debug, Default)]
@@ -37,14 +41,17 @@ enum TransactionType {
 }
 
 fn main() {
+    let _log2 = log2::open("run_log.txt").start();
+
     let transaction_csv = std::env::args()
         .nth(1)
         .expect("[!] transactions csv required");
 
+    // maybe look to use ? | have main() return a result
     let transaction_file = match File::open(transaction_csv) {
         Ok(transaction_file) => transaction_file,
         Err(err) => {
-            println!("[!] Invalid transactions file: {}", err);
+            error!("[!] Invalid transactions file: {}", err);
             std::process::exit(1);
         }
     };
@@ -64,99 +71,134 @@ fn main() {
         let transaction: TransactionRow = match row {
             Ok(transaction) => transaction,
             Err(err) => {
-                eprintln!( // TODO: Look at error handling here
-                    "[!] Row is being skipped, perhaps should hard fail: {}",
-                    err
-                );
+                warn!("Row is being skipped, error: {}", err);
                 continue;
             }
         };
-        eprintln!("{:?}", transaction);
+
+        debug!("Processing Transaction Row: {:?}", transaction);
 
         // Check the type of operation this single transaction is
         // TODO: This is sort of gross and sprawling, needs to be streamlined!
         match transaction.tx_type {
             TransactionType::Deposit => {
-                // Making an asumption here the account is created during deposit
-                // Look up the account or created a 'default' AccountRecord
-                let account = all_accounts.entry(transaction.client).or_default();
-                eprintln!("account: {:?}", account);
+                match transaction.amount {
+                    Some(amount) if amount >= Decimal::ZERO => {
+                        // Only create the account when there is a valid amount
+                        // Only persist the account when there is a valid amount
+                        let account = all_accounts.entry(transaction.client).or_default();
 
-                if transaction.amount.unwrap() < dec!(0) {
-                    eprintln!("[!] Deposit cannot be less than 0");
-                } else {
-                    let tmp_amount = transaction.amount.unwrap();
-                    eprintln!("Amount: {}", tmp_amount);
-                    account.available += tmp_amount;
+                        debug!("Deposit: {:?}", account);
+
+                        account.available += amount;
+                        all_transactions.insert(transaction.tx, transaction);
+
+                        debug!("all_transactions after Deposit: {:?}", all_transactions);
+                    }
+                    Some(amount) => {
+                        error!("Deposit cannot be less than 0: {}", amount);
+                    }
+                    None => {
+                        error!("Deposit must have an amount");
+                    }
                 }
-
-                all_transactions.insert(transaction.tx, transaction);
-                eprintln!("[debug] {:?}", all_transactions);
             }
             TransactionType::Withdrawal => {
-                // The account for the client ID must exist to preform a withdrawal
                 if let Some(account) = all_accounts.get_mut(&transaction.client) {
-                    eprintln!("account: {:?}", account);
-
-                    if transaction.amount.unwrap() < dec!(0) {
-                        eprintln!("[!] Deposit cannot be less than 0");
-                    } else {
-                        let tmp_amount = transaction.amount.unwrap();
-                        eprintln!("Amount: {}", tmp_amount);
-
-                        if account.available >= tmp_amount {
-                            account.available -= tmp_amount;
-
-                            eprintln!("Withdrawing {} from account", tmp_amount);
-                        } else {
-                            eprintln!("Cannot withdrawal more than account has");
+                    match transaction.amount {
+                        Some(amount) if amount >= Decimal::ZERO => {
+                            if account.available >= amount {
+                                account.available -= amount;
+                                debug!(
+                                    "Withdrew {} from account, available {}",
+                                    amount, account.available
+                                );
+                            } else {
+                                error!(
+                                    "Tried to withdraw {} from available {}",
+                                    amount, account.available
+                                );
+                            }
+                        }
+                        Some(amount) => {
+                            error!("Withdrawal cannot be less than 0: {}", amount);
+                        }
+                        None => {
+                            error!("Withdrawal must have an amount");
                         }
                     }
                 } else {
-                    eprintln!("Account is required to wirthdraw");
+                    error!("Account does not exist for withdrawal");
                 }
             }
             TransactionType::Dispute => {
-                // Fetch the disputed transaction
                 if let Some(disputed_transaction) = all_transactions.get_mut(&transaction.tx) {
-                    eprintln!("disputed_transaction: {:?}", disputed_transaction);
+                    // Verify transaction belongs to this client
+                    if disputed_transaction.client != transaction.client {
+                        error!(
+                            "Client {} cannot dispute transaction belonging to client {}",
+                            transaction.client, disputed_transaction.client
+                        );
+                        continue;
+                    }
 
-                    // Fetch the account
-                    if let Some(account) = all_accounts.get_mut(&transaction.client) {
-                        eprintln!("account: {:?}", account);
-
-                        // Per Specification, "clients available funds should decrease by amount disputed"
-                        account.available -= disputed_transaction.amount.unwrap();
-
-                        // Per Specification, "held funds thould increase by the amount disputed"
-                        account.held += disputed_transaction.amount.unwrap();
+                    if let Some(amount) = disputed_transaction.amount {
+                        if let Some(account) = all_accounts.get_mut(&transaction.client) {
+                            // Per Specification, "clients available funds should decrease by amount disputed"
+                            // Per Specification, "held funds thould increase by the amount disputed"
+                            account.available -= amount;
+                            account.held += amount;
+                            disputed_transaction.disputed = true; // We later check if a transaction is under dispute
+                        }
                     }
                 } else {
-                    eprintln!("[!] Dispute references non-existent transaction: {}", transaction.tx);
+                    error!(
+                        "Dispute references non-existent transaction: {}",
+                        transaction.tx
+                    );
                 }
             }
             TransactionType::Resolve => {
-                  // Fetch the resolved transaction
-                  if let Some(resolved_transaction) = all_transactions.get_mut(&transaction.tx) {
-                        eprintln!("resolved_transaction: {:?}", resolved_transaction);
+                if let Some(resolved_transaction) = all_transactions.get_mut(&transaction.tx) {
+                    // Verify transaction belongs to this client
+                    if resolved_transaction.client != transaction.client {
+                        error!(
+                            "Client {} cannot resolve transaction belonging to client {}",
+                            transaction.client, resolved_transaction.client
+                        );
+                        continue;
+                    }
 
+                    // Check if transaction is under dispute
+                    if !resolved_transaction.disputed {
+                        error!("Transaction {} is not under dispute", transaction.tx);
+                        continue;
+                    }
+
+                    if let Some(amount) = resolved_transaction.amount {
                         if let Some(account) = all_accounts.get_mut(&transaction.client) {
-                            account.held -= resolved_transaction.amount.unwrap();
-                            account.available += resolved_transaction.amount.unwrap();
+                            account.held -= amount;
+                            account.available += amount;
+                            resolved_transaction.disputed = false;
                         }
-                  }else {
-                    eprintln!("[!] Resolve references non-existent transaction: {}", transaction.tx);
+                    }
+                } else {
+                    error!(
+                        "Resolve references non-existent transaction: {}",
+                        transaction.tx
+                    );
                 }
             }
             _ => {
-                eprintln!("[!] Error, unknown type");
+                error!("Error, unknown type {:?}", transaction.tx_type);
             }
         }
     }
     for (client_id, account) in &all_accounts {
-        eprintln!("--> Client {}: {:?}", client_id, account);
+        debug!("--> Client {}: {:?}", client_id, account);
     }
 
+    // Make into struct that represents the output format
     println!("client,available,held,total,locked");
     for (client_id, account) in &all_accounts {
         println!(

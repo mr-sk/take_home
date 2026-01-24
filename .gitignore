@@ -1,3 +1,4 @@
 /target
 .vscode/
 output.csv
+run_log.txt
