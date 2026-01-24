@@ -7,9 +7,13 @@ Using `cargo fmt` and `cargo clippy` before commit.
 Using VCScode w/GitHub Co-Pilot disabled. 
 
 # Setup / Running
-`cargo build`
+Clone the repo then `cargo test`
 
-`cargo test`
+Run a specific unit test:
+* `cargo test -- resolve_moves_funds_back_to_available`
+
+Run a specific integration test:
+* `cargo test -- test_01_basic_deposits_withdrawals`
 
 # Manual Testing
 
@@ -61,18 +65,18 @@ Test all cases:
   * Resetting chargeback state once frozen  
 * Now I have a working program, with good test coverage. I know the nesting in the match is gross and needs to be refactored. My approach would be to move the majority of the logic into functions that are called under each match. This would streamline that block, encapsulate the logic and allow for unit testing. Unit testing is difficult now because it is one giant function. 
 * At this commit (https://github.com/mr-sk/take_home/commit/383393a9279ef77f2f63e62f2e77b2f2415e10e9), I had Claude refactor the script with the above goals expressed. I took the ouput and moved one function at a time, making sure I could follow the logic, the logging was detailed (it had removed all arguments), and comments were correct (it dropped those as well). After each function was ported, I ran the integration test framework. 
-* At this commit (https://github.com/mr-sk/take_home/commit/74af650e7440e9f9aef6e4a345430a48026540e0), I had Claude build unit tests, and I broke them onto a src/tests.rs. I now had basic unit tests built, which passed via `cargo test`, then I had Claude generate:
+* At this commit (https://github.com/mr-sk/take_home/commit/74af650e7440e9f9aef6e4a345430a48026540e0), I had Claude build unit tests, and I broke them into `src/tests.rs`. I now had basic unit tests built, which passed via `cargo test`. I then had Claude generate:
   * Round trip tests: Do an operation and then undo it, validate we are back in start state
-  * Invariant tests: Property that must remain true
-* After those were generated, I ran the full tests suite, which succeeded. We now have code that is cleaner, most TODOs [DONE] and there is both unit and integration tests. 
+  * Invariant tests: Test properties that must remain true
+* After those were generated, I ran the full test suite, which succeeded. We now have code that is cleaner, most TODOs are [DONE] and there is both unit and integration tests
 
 # Assumptions
 * I am _not_ hard failing if a bad row comes in from the CSV - if we think in the case of a bank or atm, I think they would raise this internally
 * Deposit is the only action that creates an account - therefor the account must exist for any other action to succeed
 
 # Future Work
-* Implement more robust arg parsing
 * [DONE] Build out test harness
+* Implement more robust arg parsing
 * Performance profiling
 
 # Resources
