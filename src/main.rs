@@ -110,12 +110,12 @@ fn main() {
                             if account.available >= amount {
                                 account.available -= amount;
                                 debug!(
-                                    "Withdrew {} from account, available {}",
+                                    "Withdrew: {} from account, available: {}",
                                     amount, account.available
                                 );
                             } else {
                                 error!(
-                                    "Tried to withdraw {} from available {}",
+                                    "Tried to withdraw: {} from available: {}",
                                     amount, account.available
                                 );
                             }
@@ -136,7 +136,7 @@ fn main() {
                     // Verify transaction belongs to this client
                     if disputed_transaction.client != transaction.client {
                         error!(
-                            "Client {} cannot dispute transaction belonging to client {}",
+                            "Client: {} cannot dispute transaction belonging to client: {}",
                             transaction.client, disputed_transaction.client
                         );
                         continue;
@@ -163,7 +163,7 @@ fn main() {
                     // Verify transaction belongs to this client
                     if resolved_transaction.client != transaction.client {
                         error!(
-                            "Client {} cannot resolve transaction belonging to client {}",
+                            "Client: {} cannot resolve transaction belonging to client: {}",
                             transaction.client, resolved_transaction.client
                         );
                         continue;
@@ -171,7 +171,7 @@ fn main() {
 
                     // Check if transaction is under dispute
                     if !resolved_transaction.disputed {
-                        error!("Transaction {} is not under dispute", transaction.tx);
+                        error!("Transaction: {} is not under dispute", transaction.tx);
                         continue;
                     }
 
@@ -190,7 +190,7 @@ fn main() {
                 }
             }
             _ => {
-                error!("Error, unknown type {:?}", transaction.tx_type);
+                error!("Error, unknown type: {:?}", transaction.tx_type);
             }
         }
     }
