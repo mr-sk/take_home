@@ -12,6 +12,9 @@ use log2::*;
 use csv::Writer;
 use serde::Serialize;
 
+#[cfg(test)]
+mod tests;
+
 #[derive(Debug, Deserialize)]
 struct TransactionRow {
     #[serde(rename = "type")] // 'type' is reserved, fix serde mapping 'type' from .csv
