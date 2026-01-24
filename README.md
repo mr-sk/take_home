@@ -11,7 +11,7 @@ Using VCScode w/GitHub Co-Pilot disabled.
 
 `cargo run test_data/01_basic_deposits_withdrawals_input.csv `
 
-# Testing
+# Manual Testing
 
 Deposit/Withdrawal:
 `cargo run -- test_data/01_basic_deposits_withdrawals_input.csv > output.csv; diff output.csv test_data/01_basic_deposits_withdrawals_expected.csv`
@@ -46,20 +46,24 @@ Test all cases:
 * [DONE] Output results to stdout (Need to fix eprintlns()/stderr maybe or just leave for debugging)
 * [DONE] Change println into logging
 * [DONE] Confirm all decimals are good to 4 places
-* Handle edge cases
-* Test against test data
+* [DONE] Handle edge cases
+* [DONE] Test against test data
 * Clean up nested if's into more idoimatic rust ways
   * Refactor into specific functions
   * [DONE] Use csvwriter? for output
 
-# BUGS
-* HashMap ordering non-deterministic - output varies / tests fail
-  * This is not a bug because spec says order doesn't matter, it's just that my hacky test harness is using diff so order _does_ matter. Will fix later when moving to unit tests.  
+# LLM Usage
+* At this (https://github.com/mr-sk/take_home/commit/1de1e32bd36f91ddaaab3f925662a2773b1f8599) commit, I had Claude generate a full integration testing suite 
+  * It took a few iterations/feedback to get it correct/simple
+  * Previouly it generated csv files I used in my development loop
+* Now I had it write the tests/integration_tests.rs file. That led me to discover and fix the following bugs:
+  * Double dispute could happen
+  * Reseting chargeback state once frozen 
+I had failures when runnings tests in parallel, suspsected because of the lock for file logging. Running the tests `cargo test --test integration_tests -- --test-threads=1` all now pass successfully.  
 
 # Assumptions
 * I am _not_ hard failing if a bad row comes in from the CSV - if we think in the case of a bank or atm, I think they would raise this internally
 * Deposit is the only action that creates an account - therefor the account must exist for any other action to succeed
-
 
 # Future Work
 * Implement more robust arg parsing
