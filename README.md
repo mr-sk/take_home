@@ -50,7 +50,7 @@ Test all cases:
 * Test against test data
 * Clean up nested if's into more idoimatic rust ways
   * Refactor into specific functions
-  * Use csvwriter? for output
+  * [DONE] Use csvwriter? for output
 
 # BUGS
 * HashMap ordering non-deterministic - output varies / tests fail

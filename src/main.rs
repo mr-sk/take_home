@@ -3,12 +3,14 @@ use std::fs::File;
 use std::io::BufReader;
 
 use rust_decimal::Decimal;
-// use rust_decimal_macros::dec;
 use serde::Deserialize;
 
 use std::collections::HashMap;
 
 use log2::*;
+
+use csv::Writer;
+use serde::Serialize;
 
 #[derive(Debug, Deserialize)]
 struct TransactionRow {
@@ -30,7 +32,7 @@ struct AccountRecord {
 }
 
 // These are the only transaction types currently supported
-#[derive(Debug, Deserialize, PartialEq)] // TODO: Possibly remove PartialEq
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "lowercase")]
 enum TransactionType {
     Deposit,
@@ -38,6 +40,15 @@ enum TransactionType {
     Dispute,
     Resolve,
     Chargeback,
+}
+
+#[derive(Serialize)]
+struct OutputRecord {
+    client: u16,
+    available: Decimal,
+    held: Decimal,
+    total: Decimal,
+    locked: bool,
 }
 
 fn main() {
@@ -84,6 +95,12 @@ fn main() {
             TransactionType::Deposit => {
                 match transaction.amount {
                     Some(amount) if amount >= Decimal::ZERO => {
+                        // Check for duplicate transaction ID
+                        if all_transactions.contains_key(&transaction.tx) {
+                            warn!("Duplicate transaction ID: {}", transaction.tx);
+                            continue;
+                        }
+
                         // Only create the account when there is a valid amount
                         // Only persist the account when there is a valid amount
                         let account = all_accounts.entry(transaction.client).or_default();
@@ -94,7 +111,7 @@ fn main() {
                             error!("Account: {} is locked", transaction.client);
                             continue;
                         }
-                        
+
                         debug!("Deposit: {:?}", account);
 
                         account.available += amount;
@@ -152,6 +169,12 @@ fn main() {
                             "Client: {} cannot dispute transaction belonging to client: {}",
                             transaction.client, disputed_transaction.client
                         );
+                        continue;
+                    }
+
+                    // Found while testing, cannot dispute the same transaction > 1 time
+                    if disputed_transaction.disputed {
+                        warn!("Transaction: {} is already under dispute", transaction.tx);
                         continue;
                     }
 
@@ -227,6 +250,8 @@ fn main() {
                         if let Some(account) = all_accounts.get_mut(&transaction.client) {
                             account.held -= amount;
                             account.locked = true;
+                            // Found while testing, a chargeback is no longer under dispute
+                            chargeback_transaction.disputed = false;
                         }
                     }
                 } else {
@@ -238,20 +263,18 @@ fn main() {
             }
         }
     }
-    for (client_id, account) in &all_accounts {
-        debug!("--> Client {}: {:?}", client_id, account);
-    }
 
-    // Make into struct that represents the output format
-    println!("client,available,held,total,locked");
+    let mut output_writer = Writer::from_writer(std::io::stdout());
     for (client_id, account) in &all_accounts {
-        println!(
-            "{},{},{},{},{}",
-            client_id,
-            account.available,
-            account.held,
-            account.available + account.held,
-            account.locked
-        );
+        output_writer
+            .serialize(OutputRecord {
+                client: *client_id, // OutputRecord does not want a reference
+                available: account.available,
+                held: account.held,
+                total: account.available + account.held,
+                locked: account.locked,
+            })
+            .unwrap();
     }
+    output_writer.flush().unwrap();
 }
