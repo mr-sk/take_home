@@ -51,6 +51,193 @@ struct OutputRecord {
     locked: bool,
 }
 
+fn handle_deposit(
+    transaction: TransactionRow,
+    accounts: &mut HashMap<u16, AccountRecord>,
+    transactions: &mut HashMap<u32, TransactionRow>,
+) -> Result<(), String> {
+    let amount = transaction
+        .amount
+        .filter(|a| *a > Decimal::ZERO) // Don't allow zero deposit
+        .ok_or_else(|| format!("Deposit tx:{} must have a valid amount", transaction.tx))?;
+
+    if transactions.contains_key(&transaction.tx) {
+        return Err(format!("Duplicate transaction ID: {}", transaction.tx));
+    }
+
+    // Only create the account when there is a valid amount
+    // Only persist the account when there is a valid amount
+    let account = accounts.entry(transaction.client).or_default();
+
+    // This isn't explicit in the Specification, but was uncovered during testing
+    // If the account is locked, we cannot deposit to (or withdraw from) it
+    if account.locked {
+        return Err(format!("Account: {} is locked", transaction.client));
+    }
+
+    account.available += amount;
+    transactions.insert(transaction.tx, transaction);
+
+    Ok(())
+}
+
+fn handle_withdrawal(
+    transaction: &TransactionRow,
+    accounts: &mut HashMap<u16, AccountRecord>,
+) -> Result<(), String> {
+    let amount = transaction
+        .amount
+        .filter(|a| *a > Decimal::ZERO) // Don't allow zero withdrawal
+        .ok_or_else(|| format!("Withdrawal tx:{} must have a valid amount", transaction.tx))?;
+
+    let account = accounts.get_mut(&transaction.client).ok_or_else(|| {
+        format!(
+            "Account: {} does not exist for withdrawal",
+            transaction.client
+        )
+    })?;
+
+    // Apply the same logic in Deposit for a locked account
+    if account.locked {
+        return Err(format!("Account: {} is locked", transaction.client));
+    }
+
+    if account.available < amount {
+        return Err(format!(
+            "Insufficient funds: tried to withdraw {} from available {}",
+            amount, account.available
+        ));
+    }
+
+    account.available -= amount;
+
+    Ok(())
+}
+
+fn handle_dispute(
+    transaction: &TransactionRow,
+    accounts: &mut HashMap<u16, AccountRecord>,
+    transactions: &mut HashMap<u32, TransactionRow>,
+) -> Result<(), String> {
+    let disputed_tx = transactions.get_mut(&transaction.tx).ok_or_else(|| {
+        format!(
+            "Dispute references non-existent transaction: {}",
+            transaction.tx
+        )
+    })?;
+
+    // Found while testing, cannot dispute the same transaction > 1 time
+    if disputed_tx.client != transaction.client {
+        return Err(format!(
+            "Client: {} cannot dispute transaction belonging to client: {}",
+            transaction.client, disputed_tx.client
+        ));
+    }
+
+    if disputed_tx.disputed {
+        return Err(format!(
+            "Transaction: {} is already under dispute",
+            transaction.tx
+        ));
+    }
+
+    let amount = disputed_tx
+        .amount
+        .ok_or_else(|| format!("Transaction: {} has no amount", transaction.tx))?;
+
+    let account = accounts
+        .get_mut(&transaction.client)
+        .ok_or_else(|| format!("Account: {} does not exist", transaction.client))?;
+
+    // Per Specification, "clients available funds should decrease by amount disputed"
+    // Per Specification, "held funds thould increase by the amount disputed"
+    account.available -= amount;
+    account.held += amount;
+    // We check later if a transaction is under dispute
+    disputed_tx.disputed = true;
+
+    Ok(())
+}
+
+fn handle_resolve(
+    transaction: &TransactionRow,
+    accounts: &mut HashMap<u16, AccountRecord>,
+    transactions: &mut HashMap<u32, TransactionRow>,
+) -> Result<(), String> {
+    let resolved_tx = transactions
+        .get_mut(&transaction.tx)
+        .ok_or_else(|| format!("Resolve references non-existent transaction: {}", transaction.tx))?;
+
+    // Verify transaction belongs to this client
+    if resolved_tx.client != transaction.client {
+        return Err(format!(
+            "Client: {} cannot resolve transaction belonging to client: {}",
+            transaction.client, resolved_tx.client
+        ));
+    }
+
+    // Check if transaction is under dispute
+    if !resolved_tx.disputed {
+        return Err(format!("Transaction: {} is not under dispute", transaction.tx));
+    }
+
+    let amount = resolved_tx
+        .amount
+        .ok_or_else(|| format!("Transaction: {} has no amount", transaction.tx))?;
+
+    let account = accounts
+        .get_mut(&transaction.client)
+        .ok_or_else(|| format!("Account: {} does not exist", transaction.client))?;
+
+    account.held -= amount;
+    account.available += amount;
+    resolved_tx.disputed = false;
+
+    Ok(())
+}
+
+fn handle_chargeback(
+    transaction: &TransactionRow,
+    accounts: &mut HashMap<u16, AccountRecord>,
+    transactions: &mut HashMap<u32, TransactionRow>,
+) -> Result<(), String> {
+    let chargeback_tx = transactions
+        .get_mut(&transaction.tx)
+        .ok_or_else(|| format!("Chargeback references non-existent transaction: {}", transaction.tx))?;
+
+    // Verify chargeback request belongs to this client
+    if chargeback_tx.client != transaction.client {
+        return Err(format!(
+            "Client: {} cannot chargeback transaction belonging to client: {}",
+            transaction.client, chargeback_tx.client
+        ));
+    }
+
+    // Specification says a 'chargeback is the final state of a dispute'
+    // So account must be under 'dispute' to initiate a chargeback
+    if !chargeback_tx.disputed {
+        return Err(format!(
+            "Transaction: {} is not under dispute and cannot be charged back",
+            transaction.tx
+        ));
+    }
+
+    let amount = chargeback_tx
+        .amount
+        .ok_or_else(|| format!("Transaction: {} has no amount", transaction.tx))?;
+
+    let account = accounts
+        .get_mut(&transaction.client)
+        .ok_or_else(|| format!("Account: {} does not exist", transaction.client))?;
+
+    account.held -= amount;
+    account.locked = true;
+    // Found while testing, a chargeback is no longer under dispute
+    chargeback_tx.disputed = false;
+
+    Ok(())
+}
+
 fn main() {
     let _log2 = log2::open("run_log.txt").start();
 
@@ -90,177 +277,26 @@ fn main() {
         debug!("Processing Transaction Row: {:?}", transaction);
 
         // Check the type of operation this single transaction is
-        // TODO: This is sort of gross and sprawling, needs to be streamlined!
-        match transaction.tx_type {
+        let result = match transaction.tx_type {
             TransactionType::Deposit => {
-                match transaction.amount {
-                    Some(amount) if amount >= Decimal::ZERO => {
-                        // Check for duplicate transaction ID
-                        if all_transactions.contains_key(&transaction.tx) {
-                            warn!("Duplicate transaction ID: {}", transaction.tx);
-                            continue;
-                        }
-
-                        // Only create the account when there is a valid amount
-                        // Only persist the account when there is a valid amount
-                        let account = all_accounts.entry(transaction.client).or_default();
-
-                        // This isn't explicit in the Specification, but was uncovered during testing
-                        // If the account is locked, we cannot deposit to (or withdraw from) it
-                        if account.locked {
-                            error!("Account: {} is locked", transaction.client);
-                            continue;
-                        }
-
-                        debug!("Deposit: {:?}", account);
-
-                        account.available += amount;
-                        all_transactions.insert(transaction.tx, transaction);
-
-                        debug!("all_transactions after Deposit: {:?}", all_transactions);
-                    }
-                    Some(amount) => {
-                        error!("Deposit cannot be less than 0: {}", amount);
-                    }
-                    None => {
-                        error!("Deposit must have an amount");
-                    }
-                }
+                handle_deposit(transaction, &mut all_accounts, &mut all_transactions)
             }
             TransactionType::Withdrawal => {
-                if let Some(account) = all_accounts.get_mut(&transaction.client) {
-                    // Apply the same logic in Deposit for a locked account
-                    if account.locked {
-                        error!("Account: {} is locked", transaction.client);
-                        continue;
-                    }
-
-                    match transaction.amount {
-                        Some(amount) if amount >= Decimal::ZERO => {
-                            if account.available >= amount {
-                                account.available -= amount;
-                                debug!(
-                                    "Withdrew: {} from account, available: {}",
-                                    amount, account.available
-                                );
-                            } else {
-                                error!(
-                                    "Tried to withdraw: {} from available: {}",
-                                    amount, account.available
-                                );
-                            }
-                        }
-                        Some(amount) => {
-                            error!("Withdrawal cannot be less than 0: {}", amount);
-                        }
-                        None => {
-                            error!("Withdrawal must have an amount");
-                        }
-                    }
-                } else {
-                    error!("Account does not exist for withdrawal");
-                }
+                handle_withdrawal(&transaction, &mut all_accounts)
             }
             TransactionType::Dispute => {
-                if let Some(disputed_transaction) = all_transactions.get_mut(&transaction.tx) {
-                    // Verify transaction belongs to this client
-                    if disputed_transaction.client != transaction.client {
-                        error!(
-                            "Client: {} cannot dispute transaction belonging to client: {}",
-                            transaction.client, disputed_transaction.client
-                        );
-                        continue;
-                    }
-
-                    // Found while testing, cannot dispute the same transaction > 1 time
-                    if disputed_transaction.disputed {
-                        warn!("Transaction: {} is already under dispute", transaction.tx);
-                        continue;
-                    }
-
-                    if let Some(amount) = disputed_transaction.amount {
-                        if let Some(account) = all_accounts.get_mut(&transaction.client) {
-                            // Per Specification, "clients available funds should decrease by amount disputed"
-                            // Per Specification, "held funds thould increase by the amount disputed"
-                            account.available -= amount;
-                            account.held += amount;
-                            disputed_transaction.disputed = true; // We later check if a transaction is under dispute
-                        }
-                    }
-                } else {
-                    error!(
-                        "Dispute references non-existent transaction: {}",
-                        transaction.tx
-                    );
-                }
+                handle_dispute(&transaction, &mut all_accounts, &mut all_transactions)
             }
             TransactionType::Resolve => {
-                if let Some(resolved_transaction) = all_transactions.get_mut(&transaction.tx) {
-                    // Verify transaction belongs to this client
-                    if resolved_transaction.client != transaction.client {
-                        error!(
-                            "Client: {} cannot resolve transaction belonging to client: {}",
-                            transaction.client, resolved_transaction.client
-                        );
-                        continue;
-                    }
-
-                    // Check if transaction is under dispute
-                    if !resolved_transaction.disputed {
-                        error!("Transaction: {} is not under dispute", transaction.tx);
-                        continue;
-                    }
-
-                    if let Some(amount) = resolved_transaction.amount {
-                        if let Some(account) = all_accounts.get_mut(&transaction.client) {
-                            account.held -= amount;
-                            account.available += amount;
-                            resolved_transaction.disputed = false;
-                        }
-                    }
-                } else {
-                    error!(
-                        "Resolve references non-existent transaction: {}",
-                        transaction.tx
-                    );
-                }
+                handle_resolve(&transaction, &mut all_accounts, &mut all_transactions)
             }
             TransactionType::Chargeback => {
-                if let Some(chargeback_transaction) = all_transactions.get_mut(&transaction.tx) {
-                    // Verify chargeback request belongs to this client
-                    if chargeback_transaction.client != transaction.client {
-                        error!(
-                            "Client: {} cannot chargeback transaction belonging to client: {}",
-                            transaction.client, chargeback_transaction.client
-                        );
-                        continue;
-                    }
-
-                    // Specification says a 'chargeback is the final state of a dispute'
-                    // So account must be under 'dispute' to initiate a chargeback
-                    if !chargeback_transaction.disputed {
-                        error!(
-                            "Transaction: {} is not under dispute and cannot be charged back",
-                            transaction.tx
-                        );
-                        continue;
-                    }
-
-                    if let Some(amount) = chargeback_transaction.amount {
-                        if let Some(account) = all_accounts.get_mut(&transaction.client) {
-                            account.held -= amount;
-                            account.locked = true;
-                            // Found while testing, a chargeback is no longer under dispute
-                            chargeback_transaction.disputed = false;
-                        }
-                    }
-                } else {
-                    error!(
-                        "Chargeback references non-existent transaction: {}",
-                        transaction.tx
-                    );
-                }
+                handle_chargeback(&transaction, &mut all_accounts, &mut all_transactions)
             }
+        };
+
+        if let Err(e) = result {
+            error!("Transaction failed: {}", e);
         }
     }
 
