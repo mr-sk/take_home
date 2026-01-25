@@ -2,8 +2,8 @@
 // Various tweaking by a human
 // Fixed a race condition by hand in run_engine
 
-use std::collections::HashMap;
 use assert_cmd::cargo::cargo_bin_cmd;
+use std::collections::HashMap;
 
 /// Run the payments engine with the given input file and return stdout
 fn run_engine(input_file: &str) -> String {

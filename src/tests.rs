@@ -3,7 +3,7 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::*; 
+    use crate::*;
     use rust_decimal_macros::dec;
 
     // Helper to create a deposit transaction
@@ -70,7 +70,11 @@ mod tests {
         let mut accounts: HashMap<u16, AccountRecord> = HashMap::new();
         let mut transactions: HashMap<u32, TransactionRow> = HashMap::new();
 
-        let result = handle_deposit(make_deposit(1, 1, dec!(100)), &mut accounts, &mut transactions);
+        let result = handle_deposit(
+            make_deposit(1, 1, dec!(100)),
+            &mut accounts,
+            &mut transactions,
+        );
 
         assert!(result.is_ok());
         assert_eq!(accounts.get(&1).unwrap().available, dec!(100));
@@ -82,8 +86,18 @@ mod tests {
         let mut accounts: HashMap<u16, AccountRecord> = HashMap::new();
         let mut transactions: HashMap<u32, TransactionRow> = HashMap::new();
 
-        handle_deposit(make_deposit(1, 1, dec!(100)), &mut accounts, &mut transactions).unwrap();
-        handle_deposit(make_deposit(1, 2, dec!(50)), &mut accounts, &mut transactions).unwrap();
+        handle_deposit(
+            make_deposit(1, 1, dec!(100)),
+            &mut accounts,
+            &mut transactions,
+        )
+        .unwrap();
+        handle_deposit(
+            make_deposit(1, 2, dec!(50)),
+            &mut accounts,
+            &mut transactions,
+        )
+        .unwrap();
 
         assert_eq!(accounts.get(&1).unwrap().available, dec!(150));
     }
@@ -93,8 +107,17 @@ mod tests {
         let mut accounts: HashMap<u16, AccountRecord> = HashMap::new();
         let mut transactions: HashMap<u32, TransactionRow> = HashMap::new();
 
-        handle_deposit(make_deposit(1, 1, dec!(100)), &mut accounts, &mut transactions).unwrap();
-        let result = handle_deposit(make_deposit(1, 1, dec!(50)), &mut accounts, &mut transactions);
+        handle_deposit(
+            make_deposit(1, 1, dec!(100)),
+            &mut accounts,
+            &mut transactions,
+        )
+        .unwrap();
+        let result = handle_deposit(
+            make_deposit(1, 1, dec!(50)),
+            &mut accounts,
+            &mut transactions,
+        );
 
         assert!(result.is_err());
         assert_eq!(accounts.get(&1).unwrap().available, dec!(100)); // unchanged
@@ -105,7 +128,11 @@ mod tests {
         let mut accounts: HashMap<u16, AccountRecord> = HashMap::new();
         let mut transactions: HashMap<u32, TransactionRow> = HashMap::new();
 
-        let result = handle_deposit(make_deposit(1, 1, dec!(0)), &mut accounts, &mut transactions);
+        let result = handle_deposit(
+            make_deposit(1, 1, dec!(0)),
+            &mut accounts,
+            &mut transactions,
+        );
 
         assert!(result.is_err());
         assert!(!accounts.contains_key(&1));
@@ -116,7 +143,11 @@ mod tests {
         let mut accounts: HashMap<u16, AccountRecord> = HashMap::new();
         let mut transactions: HashMap<u32, TransactionRow> = HashMap::new();
 
-        let result = handle_deposit(make_deposit(1, 1, dec!(-50)), &mut accounts, &mut transactions);
+        let result = handle_deposit(
+            make_deposit(1, 1, dec!(-50)),
+            &mut accounts,
+            &mut transactions,
+        );
 
         assert!(result.is_err());
         assert!(!accounts.contains_key(&1));
@@ -125,14 +156,21 @@ mod tests {
     #[test]
     fn deposit_rejects_locked_account() {
         let mut accounts: HashMap<u16, AccountRecord> = HashMap::new();
-        accounts.insert(1, AccountRecord {
-            available: dec!(100),
-            held: dec!(0),
-            locked: true,
-        });
+        accounts.insert(
+            1,
+            AccountRecord {
+                available: dec!(100),
+                held: dec!(0),
+                locked: true,
+            },
+        );
         let mut transactions: HashMap<u32, TransactionRow> = HashMap::new();
 
-        let result = handle_deposit(make_deposit(1, 1, dec!(50)), &mut accounts, &mut transactions);
+        let result = handle_deposit(
+            make_deposit(1, 1, dec!(50)),
+            &mut accounts,
+            &mut transactions,
+        );
 
         assert!(result.is_err());
         assert_eq!(accounts.get(&1).unwrap().available, dec!(100)); // unchanged
@@ -145,11 +183,14 @@ mod tests {
     #[test]
     fn withdrawal_subtracts_funds() {
         let mut accounts: HashMap<u16, AccountRecord> = HashMap::new();
-        accounts.insert(1, AccountRecord {
-            available: dec!(100),
-            held: dec!(0),
-            locked: false,
-        });
+        accounts.insert(
+            1,
+            AccountRecord {
+                available: dec!(100),
+                held: dec!(0),
+                locked: false,
+            },
+        );
 
         let tx = make_withdrawal(1, 1, dec!(30));
         let result = handle_withdrawal(&tx, &mut accounts);
@@ -161,11 +202,14 @@ mod tests {
     #[test]
     fn withdrawal_rejects_insufficient_funds() {
         let mut accounts: HashMap<u16, AccountRecord> = HashMap::new();
-        accounts.insert(1, AccountRecord {
-            available: dec!(50),
-            held: dec!(0),
-            locked: false,
-        });
+        accounts.insert(
+            1,
+            AccountRecord {
+                available: dec!(50),
+                held: dec!(0),
+                locked: false,
+            },
+        );
 
         let tx = make_withdrawal(1, 1, dec!(100));
         let result = handle_withdrawal(&tx, &mut accounts);
@@ -187,11 +231,14 @@ mod tests {
     #[test]
     fn withdrawal_rejects_locked_account() {
         let mut accounts: HashMap<u16, AccountRecord> = HashMap::new();
-        accounts.insert(1, AccountRecord {
-            available: dec!(100),
-            held: dec!(0),
-            locked: true,
-        });
+        accounts.insert(
+            1,
+            AccountRecord {
+                available: dec!(100),
+                held: dec!(0),
+                locked: true,
+            },
+        );
 
         let tx = make_withdrawal(1, 1, dec!(30));
         let result = handle_withdrawal(&tx, &mut accounts);
@@ -203,11 +250,14 @@ mod tests {
     #[test]
     fn withdrawal_rejects_zero_amount() {
         let mut accounts: HashMap<u16, AccountRecord> = HashMap::new();
-        accounts.insert(1, AccountRecord {
-            available: dec!(100),
-            held: dec!(0),
-            locked: false,
-        });
+        accounts.insert(
+            1,
+            AccountRecord {
+                available: dec!(100),
+                held: dec!(0),
+                locked: false,
+            },
+        );
 
         let tx = make_withdrawal(1, 1, dec!(0));
         let result = handle_withdrawal(&tx, &mut accounts);
@@ -222,11 +272,14 @@ mod tests {
     #[test]
     fn dispute_moves_funds_to_held() {
         let mut accounts: HashMap<u16, AccountRecord> = HashMap::new();
-        accounts.insert(1, AccountRecord {
-            available: dec!(100),
-            held: dec!(0),
-            locked: false,
-        });
+        accounts.insert(
+            1,
+            AccountRecord {
+                available: dec!(100),
+                held: dec!(0),
+                locked: false,
+            },
+        );
         let mut transactions: HashMap<u32, TransactionRow> = HashMap::new();
         transactions.insert(1, make_deposit(1, 1, dec!(100)));
 
@@ -253,11 +306,14 @@ mod tests {
     #[test]
     fn dispute_rejects_wrong_client() {
         let mut accounts: HashMap<u16, AccountRecord> = HashMap::new();
-        accounts.insert(1, AccountRecord {
-            available: dec!(100),
-            held: dec!(0),
-            locked: false,
-        });
+        accounts.insert(
+            1,
+            AccountRecord {
+                available: dec!(100),
+                held: dec!(0),
+                locked: false,
+            },
+        );
         let mut transactions: HashMap<u32, TransactionRow> = HashMap::new();
         transactions.insert(1, make_deposit(1, 1, dec!(100)));
 
@@ -271,11 +327,14 @@ mod tests {
     #[test]
     fn dispute_rejects_already_disputed() {
         let mut accounts: HashMap<u16, AccountRecord> = HashMap::new();
-        accounts.insert(1, AccountRecord {
-            available: dec!(100),
-            held: dec!(0),
-            locked: false,
-        });
+        accounts.insert(
+            1,
+            AccountRecord {
+                available: dec!(100),
+                held: dec!(0),
+                locked: false,
+            },
+        );
         let mut transactions: HashMap<u32, TransactionRow> = HashMap::new();
         let mut deposit = make_deposit(1, 1, dec!(100));
         deposit.disputed = true;
@@ -294,11 +353,14 @@ mod tests {
     #[test]
     fn resolve_moves_funds_back_to_available() {
         let mut accounts: HashMap<u16, AccountRecord> = HashMap::new();
-        accounts.insert(1, AccountRecord {
-            available: dec!(0),
-            held: dec!(100),
-            locked: false,
-        });
+        accounts.insert(
+            1,
+            AccountRecord {
+                available: dec!(0),
+                held: dec!(100),
+                locked: false,
+            },
+        );
         let mut transactions: HashMap<u32, TransactionRow> = HashMap::new();
         let mut deposit = make_deposit(1, 1, dec!(100));
         deposit.disputed = true;
@@ -316,11 +378,14 @@ mod tests {
     #[test]
     fn resolve_rejects_not_disputed() {
         let mut accounts: HashMap<u16, AccountRecord> = HashMap::new();
-        accounts.insert(1, AccountRecord {
-            available: dec!(100),
-            held: dec!(0),
-            locked: false,
-        });
+        accounts.insert(
+            1,
+            AccountRecord {
+                available: dec!(100),
+                held: dec!(0),
+                locked: false,
+            },
+        );
         let mut transactions: HashMap<u32, TransactionRow> = HashMap::new();
         transactions.insert(1, make_deposit(1, 1, dec!(100)));
 
@@ -333,11 +398,14 @@ mod tests {
     #[test]
     fn resolve_rejects_wrong_client() {
         let mut accounts: HashMap<u16, AccountRecord> = HashMap::new();
-        accounts.insert(1, AccountRecord {
-            available: dec!(0),
-            held: dec!(100),
-            locked: false,
-        });
+        accounts.insert(
+            1,
+            AccountRecord {
+                available: dec!(0),
+                held: dec!(100),
+                locked: false,
+            },
+        );
         let mut transactions: HashMap<u32, TransactionRow> = HashMap::new();
         let mut deposit = make_deposit(1, 1, dec!(100));
         deposit.disputed = true;
@@ -357,11 +425,14 @@ mod tests {
     #[test]
     fn chargeback_removes_held_and_locks_account() {
         let mut accounts: HashMap<u16, AccountRecord> = HashMap::new();
-        accounts.insert(1, AccountRecord {
-            available: dec!(50),
-            held: dec!(100),
-            locked: false,
-        });
+        accounts.insert(
+            1,
+            AccountRecord {
+                available: dec!(50),
+                held: dec!(100),
+                locked: false,
+            },
+        );
         let mut transactions: HashMap<u32, TransactionRow> = HashMap::new();
         let mut deposit = make_deposit(1, 1, dec!(100));
         deposit.disputed = true;
@@ -380,11 +451,14 @@ mod tests {
     #[test]
     fn chargeback_rejects_not_disputed() {
         let mut accounts: HashMap<u16, AccountRecord> = HashMap::new();
-        accounts.insert(1, AccountRecord {
-            available: dec!(100),
-            held: dec!(0),
-            locked: false,
-        });
+        accounts.insert(
+            1,
+            AccountRecord {
+                available: dec!(100),
+                held: dec!(0),
+                locked: false,
+            },
+        );
         let mut transactions: HashMap<u32, TransactionRow> = HashMap::new();
         transactions.insert(1, make_deposit(1, 1, dec!(100)));
 
@@ -398,11 +472,14 @@ mod tests {
     #[test]
     fn chargeback_rejects_wrong_client() {
         let mut accounts: HashMap<u16, AccountRecord> = HashMap::new();
-        accounts.insert(1, AccountRecord {
-            available: dec!(0),
-            held: dec!(100),
-            locked: false,
-        });
+        accounts.insert(
+            1,
+            AccountRecord {
+                available: dec!(0),
+                held: dec!(100),
+                locked: false,
+            },
+        );
         let mut transactions: HashMap<u32, TransactionRow> = HashMap::new();
         let mut deposit = make_deposit(1, 1, dec!(100));
         deposit.disputed = true;
@@ -424,8 +501,13 @@ mod tests {
         let mut accounts: HashMap<u16, AccountRecord> = HashMap::new();
         let mut transactions: HashMap<u32, TransactionRow> = HashMap::new();
 
-        handle_deposit(make_deposit(1, 1, dec!(100)), &mut accounts, &mut transactions).unwrap();
-        
+        handle_deposit(
+            make_deposit(1, 1, dec!(100)),
+            &mut accounts,
+            &mut transactions,
+        )
+        .unwrap();
+
         let original_available = accounts.get(&1).unwrap().available;
         let original_held = accounts.get(&1).unwrap().held;
 
@@ -444,15 +526,23 @@ mod tests {
         let mut accounts: HashMap<u16, AccountRecord> = HashMap::new();
         let mut transactions: HashMap<u32, TransactionRow> = HashMap::new();
 
-        handle_deposit(make_deposit(1, 1, dec!(100)), &mut accounts, &mut transactions).unwrap();
-        
+        handle_deposit(
+            make_deposit(1, 1, dec!(100)),
+            &mut accounts,
+            &mut transactions,
+        )
+        .unwrap();
+
         let total_before = accounts.get(&1).unwrap().available + accounts.get(&1).unwrap().held;
 
         handle_dispute(&make_dispute(1, 1), &mut accounts, &mut transactions).unwrap();
-        
+
         let total_after = accounts.get(&1).unwrap().available + accounts.get(&1).unwrap().held;
 
-        assert_eq!(total_before, total_after, "Total should not change during dispute");
+        assert_eq!(
+            total_before, total_after,
+            "Total should not change during dispute"
+        );
     }
 
     #[test]
@@ -460,16 +550,24 @@ mod tests {
         let mut accounts: HashMap<u16, AccountRecord> = HashMap::new();
         let mut transactions: HashMap<u32, TransactionRow> = HashMap::new();
 
-        handle_deposit(make_deposit(1, 1, dec!(100)), &mut accounts, &mut transactions).unwrap();
+        handle_deposit(
+            make_deposit(1, 1, dec!(100)),
+            &mut accounts,
+            &mut transactions,
+        )
+        .unwrap();
         handle_dispute(&make_dispute(1, 1), &mut accounts, &mut transactions).unwrap();
 
         let total_before = accounts.get(&1).unwrap().available + accounts.get(&1).unwrap().held;
 
         handle_resolve(&make_resolve(1, 1), &mut accounts, &mut transactions).unwrap();
-        
+
         let total_after = accounts.get(&1).unwrap().available + accounts.get(&1).unwrap().held;
 
-        assert_eq!(total_before, total_after, "Total should not change during resolve");
+        assert_eq!(
+            total_before, total_after,
+            "Total should not change during resolve"
+        );
     }
 
     #[test]
@@ -477,18 +575,32 @@ mod tests {
         let mut accounts: HashMap<u16, AccountRecord> = HashMap::new();
         let mut transactions: HashMap<u32, TransactionRow> = HashMap::new();
 
-        handle_deposit(make_deposit(1, 1, dec!(100)), &mut accounts, &mut transactions).unwrap();
-        handle_deposit(make_deposit(1, 2, dec!(50)), &mut accounts, &mut transactions).unwrap();
-        
+        handle_deposit(
+            make_deposit(1, 1, dec!(100)),
+            &mut accounts,
+            &mut transactions,
+        )
+        .unwrap();
+        handle_deposit(
+            make_deposit(1, 2, dec!(50)),
+            &mut accounts,
+            &mut transactions,
+        )
+        .unwrap();
+
         let total_before = accounts.get(&1).unwrap().available + accounts.get(&1).unwrap().held;
         assert_eq!(total_before, dec!(150));
 
         handle_dispute(&make_dispute(1, 1), &mut accounts, &mut transactions).unwrap();
         handle_chargeback(&make_chargeback(1, 1), &mut accounts, &mut transactions).unwrap();
-        
+
         let total_after = accounts.get(&1).unwrap().available + accounts.get(&1).unwrap().held;
 
-        assert_eq!(total_after, dec!(50), "Total should decrease by chargeback amount (100)");
+        assert_eq!(
+            total_after,
+            dec!(50),
+            "Total should decrease by chargeback amount (100)"
+        );
     }
 
     #[test]
@@ -496,10 +608,25 @@ mod tests {
         let mut accounts: HashMap<u16, AccountRecord> = HashMap::new();
         let mut transactions: HashMap<u32, TransactionRow> = HashMap::new();
 
-        handle_deposit(make_deposit(1, 1, dec!(100)), &mut accounts, &mut transactions).unwrap();
-        handle_deposit(make_deposit(1, 2, dec!(50)), &mut accounts, &mut transactions).unwrap();
+        handle_deposit(
+            make_deposit(1, 1, dec!(100)),
+            &mut accounts,
+            &mut transactions,
+        )
+        .unwrap();
+        handle_deposit(
+            make_deposit(1, 2, dec!(50)),
+            &mut accounts,
+            &mut transactions,
+        )
+        .unwrap();
         handle_withdrawal(&make_withdrawal(1, 3, dec!(30)), &mut accounts).unwrap();
-        handle_deposit(make_deposit(1, 4, dec!(20)), &mut accounts, &mut transactions).unwrap();
+        handle_deposit(
+            make_deposit(1, 4, dec!(20)),
+            &mut accounts,
+            &mut transactions,
+        )
+        .unwrap();
         handle_withdrawal(&make_withdrawal(1, 5, dec!(40)), &mut accounts).unwrap();
 
         // 100 + 50 - 30 + 20 - 40 = 100
@@ -511,7 +638,12 @@ mod tests {
         let mut accounts: HashMap<u16, AccountRecord> = HashMap::new();
         let mut transactions: HashMap<u32, TransactionRow> = HashMap::new();
 
-        handle_deposit(make_deposit(1, 1, dec!(100)), &mut accounts, &mut transactions).unwrap();
+        handle_deposit(
+            make_deposit(1, 1, dec!(100)),
+            &mut accounts,
+            &mut transactions,
+        )
+        .unwrap();
 
         // First cycle
         handle_dispute(&make_dispute(1, 1), &mut accounts, &mut transactions).unwrap();
@@ -531,8 +663,13 @@ mod tests {
         let mut accounts: HashMap<u16, AccountRecord> = HashMap::new();
         let mut transactions: HashMap<u32, TransactionRow> = HashMap::new();
 
-        handle_deposit(make_deposit(1, 1, dec!(100)), &mut accounts, &mut transactions).unwrap();
-        
+        handle_deposit(
+            make_deposit(1, 1, dec!(100)),
+            &mut accounts,
+            &mut transactions,
+        )
+        .unwrap();
+
         let available_before = accounts.get(&1).unwrap().available;
         let held_before = accounts.get(&1).unwrap().held;
 
@@ -551,7 +688,12 @@ mod tests {
         let mut accounts: HashMap<u16, AccountRecord> = HashMap::new();
         let mut transactions: HashMap<u32, TransactionRow> = HashMap::new();
 
-        handle_deposit(make_deposit(1, 1, dec!(100)), &mut accounts, &mut transactions).unwrap();
+        handle_deposit(
+            make_deposit(1, 1, dec!(100)),
+            &mut accounts,
+            &mut transactions,
+        )
+        .unwrap();
         handle_dispute(&make_dispute(1, 1), &mut accounts, &mut transactions).unwrap();
         handle_chargeback(&make_chargeback(1, 1), &mut accounts, &mut transactions).unwrap();
 
@@ -559,7 +701,11 @@ mod tests {
         let available_after_lock = accounts.get(&1).unwrap().available;
 
         // Both should fail
-        let deposit_result = handle_deposit(make_deposit(1, 2, dec!(50)), &mut accounts, &mut transactions);
+        let deposit_result = handle_deposit(
+            make_deposit(1, 2, dec!(50)),
+            &mut accounts,
+            &mut transactions,
+        );
         let withdrawal_result = handle_withdrawal(&make_withdrawal(1, 3, dec!(10)), &mut accounts);
 
         assert!(deposit_result.is_err());

@@ -153,7 +153,7 @@ fn handle_dispute(
         .ok_or_else(|| format!("Account: {} does not exist", transaction.client))?;
 
     // Per Specification, "clients available funds should decrease by amount disputed"
-    // Per Specification, "held funds thould increase by the amount disputed"
+    // Per Specification, "held funds should increase by the amount disputed"
     account.available -= amount;
     account.held += amount;
     // We check later if a transaction is under dispute
@@ -167,9 +167,12 @@ fn handle_resolve(
     accounts: &mut HashMap<u16, AccountRecord>,
     transactions: &mut HashMap<u32, TransactionRow>,
 ) -> Result<(), String> {
-    let resolved_tx = transactions
-        .get_mut(&transaction.tx)
-        .ok_or_else(|| format!("Resolve references non-existent transaction: {}", transaction.tx))?;
+    let resolved_tx = transactions.get_mut(&transaction.tx).ok_or_else(|| {
+        format!(
+            "Resolve references non-existent transaction: {}",
+            transaction.tx
+        )
+    })?;
 
     // Verify transaction belongs to this client
     if resolved_tx.client != transaction.client {
@@ -181,7 +184,10 @@ fn handle_resolve(
 
     // Check if transaction is under dispute
     if !resolved_tx.disputed {
-        return Err(format!("Transaction: {} is not under dispute", transaction.tx));
+        return Err(format!(
+            "Transaction: {} is not under dispute",
+            transaction.tx
+        ));
     }
 
     let amount = resolved_tx
@@ -204,9 +210,12 @@ fn handle_chargeback(
     accounts: &mut HashMap<u16, AccountRecord>,
     transactions: &mut HashMap<u32, TransactionRow>,
 ) -> Result<(), String> {
-    let chargeback_tx = transactions
-        .get_mut(&transaction.tx)
-        .ok_or_else(|| format!("Chargeback references non-existent transaction: {}", transaction.tx))?;
+    let chargeback_tx = transactions.get_mut(&transaction.tx).ok_or_else(|| {
+        format!(
+            "Chargeback references non-existent transaction: {}",
+            transaction.tx
+        )
+    })?;
 
     // Verify chargeback request belongs to this client
     if chargeback_tx.client != transaction.client {
@@ -244,9 +253,7 @@ fn handle_chargeback(
 fn main() {
     let _log2 = log2::open("run_log.txt").start();
 
-    let transaction_csv = std::env::args()
-        .nth(1)
-        .expect("Transactions csv required");
+    let transaction_csv = std::env::args().nth(1).expect("Transactions csv required");
 
     // maybe look to use ? | have main() return a result
     let transaction_file = match File::open(transaction_csv) {
@@ -284,9 +291,7 @@ fn main() {
             TransactionType::Deposit => {
                 handle_deposit(transaction, &mut all_accounts, &mut all_transactions)
             }
-            TransactionType::Withdrawal => {
-                handle_withdrawal(&transaction, &mut all_accounts)
-            }
+            TransactionType::Withdrawal => handle_withdrawal(&transaction, &mut all_accounts),
             TransactionType::Dispute => {
                 handle_dispute(&transaction, &mut all_accounts, &mut all_transactions)
             }
@@ -305,15 +310,17 @@ fn main() {
 
     let mut output_writer = Writer::from_writer(std::io::stdout());
     for (client_id, account) in &all_accounts {
-        output_writer
-            .serialize(OutputRecord {
-                client: *client_id, // OutputRecord does not want a reference
-                available: account.available,
-                held: account.held,
-                total: account.available + account.held,
-                locked: account.locked,
-            })
-            .unwrap();
+        if let Err(e) = output_writer.serialize(OutputRecord {
+            client: *client_id, // OutputRecord does not want a reference
+            available: account.available,
+            held: account.held,
+            total: account.available + account.held,
+            locked: account.locked,
+        }) {
+            error!("Failed to serialize output: {}", e);
+        }
     }
-    output_writer.flush().unwrap();
+    if let Err(e) = output_writer.flush() {
+        error!("Failed to flush output: {}", e);
+    }
 }
