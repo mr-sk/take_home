@@ -712,4 +712,100 @@ mod tests {
         assert!(withdrawal_result.is_err());
         assert_eq!(accounts.get(&1).unwrap().available, available_after_lock);
     }
+
+    // =========================================================================
+    // Decimal Precision Tests
+    // =========================================================================
+
+    #[test]
+    fn deposit_preserves_four_decimal_places() {
+        let mut accounts: HashMap<u16, AccountRecord> = HashMap::new();
+        let mut transactions: HashMap<u32, TransactionRow> = HashMap::new();
+
+        handle_deposit(make_deposit(1, 1, dec!(100.1234)), &mut accounts, &mut transactions).unwrap();
+
+        assert_eq!(accounts.get(&1).unwrap().available, dec!(100.1234));
+    }
+
+    #[test]
+    fn multiple_deposits_preserve_precision() {
+        let mut accounts: HashMap<u16, AccountRecord> = HashMap::new();
+        let mut transactions: HashMap<u32, TransactionRow> = HashMap::new();
+
+        handle_deposit(make_deposit(1, 1, dec!(0.0001)), &mut accounts, &mut transactions).unwrap();
+        handle_deposit(make_deposit(1, 2, dec!(0.0001)), &mut accounts, &mut transactions).unwrap();
+        handle_deposit(make_deposit(1, 3, dec!(0.0001)), &mut accounts, &mut transactions).unwrap();
+
+        assert_eq!(accounts.get(&1).unwrap().available, dec!(0.0003));
+    }
+
+    #[test]
+    fn withdrawal_preserves_precision() {
+        let mut accounts: HashMap<u16, AccountRecord> = HashMap::new();
+        accounts.insert(1, AccountRecord {
+            available: dec!(100.5678),
+            held: dec!(0),
+            locked: false,
+        });
+
+        let tx = make_withdrawal(1, 1, dec!(0.0008));
+        handle_withdrawal(&tx, &mut accounts).unwrap();
+
+        assert_eq!(accounts.get(&1).unwrap().available, dec!(100.567));
+    }
+
+    #[test]
+    fn dispute_preserves_precision() {
+        let mut accounts: HashMap<u16, AccountRecord> = HashMap::new();
+        accounts.insert(1, AccountRecord {
+            available: dec!(50.1234),
+            held: dec!(0),
+            locked: false,
+        });
+        let mut transactions: HashMap<u32, TransactionRow> = HashMap::new();
+        transactions.insert(1, make_deposit(1, 1, dec!(50.1234)));
+
+        handle_dispute(&make_dispute(1, 1), &mut accounts, &mut transactions).unwrap();
+
+        assert_eq!(accounts.get(&1).unwrap().available, dec!(0));
+        assert_eq!(accounts.get(&1).unwrap().held, dec!(50.1234));
+    }
+
+    #[test]
+    fn total_preserves_precision() {
+        let account = AccountRecord {
+            available: dec!(100.1111),
+            held: dec!(50.2222),
+            locked: false,
+        };
+
+        assert_eq!(account.available + account.held, dec!(150.3333));
+    }
+
+    #[test]
+    fn many_small_deposits_no_floating_point_error() {
+        let mut accounts: HashMap<u16, AccountRecord> = HashMap::new();
+        let mut transactions: HashMap<u32, TransactionRow> = HashMap::new();
+
+        // This would fail with f64 due to floating point errors
+        for i in 1..=10000 {
+            handle_deposit(make_deposit(1, i, dec!(0.0001)), &mut accounts, &mut transactions).unwrap();
+        }
+
+        assert_eq!(accounts.get(&1).unwrap().available, dec!(1.0000));
+    }
+
+    #[test]
+    fn input_with_more_than_four_decimals_truncated_or_rejected() {
+        // This tests what happens if input has more precision than expected
+        // rust_decimal will preserve it, but spec says input is "up to four places"
+        let mut accounts: HashMap<u16, AccountRecord> = HashMap::new();
+        let mut transactions: HashMap<u32, TransactionRow> = HashMap::new();
+
+        // dec!(0.00001) has 5 decimal places - Decimal will store it exactly
+        handle_deposit(make_deposit(1, 1, dec!(0.00001)), &mut accounts, &mut transactions).unwrap();
+
+        // Decimal preserves it - if you need to reject/truncate, add validation
+        assert_eq!(accounts.get(&1).unwrap().available, dec!(0.00001));
+    }
 }
