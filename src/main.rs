@@ -61,7 +61,7 @@ fn handle_deposit(
 ) -> Result<(), String> {
     let amount = transaction
         .amount
-        .filter(|a| a.scale() <= 4) // Add this line - reject > 4 decimal places
+        .filter(|a| a.scale() <= 4) // Reject > 4 decimal places
         .filter(|a| *a > Decimal::ZERO) // Don't allow zero deposit
         .ok_or_else(|| {
             format!(
@@ -96,7 +96,7 @@ fn handle_withdrawal(
 ) -> Result<(), String> {
     let amount = transaction
         .amount
-        .filter(|a| a.scale() <= 4) // Reject more than 4 decimal places
+        .filter(|a| a.scale() <= 4) // Reject > than 4 decimal places
         .filter(|a| *a > Decimal::ZERO) // Don't allow zero withdrawal
         .ok_or_else(|| {
             format!(
