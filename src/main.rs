@@ -65,7 +65,7 @@ fn handle_deposit(
         .filter(|a| *a > Decimal::ZERO) // Don't allow zero deposit
         .ok_or_else(|| {
             format!(
-                "Deposit transction:{} must have a valid amount up to four decimals",
+                "Deposit transaction:{} must have a valid amount up to four decimals",
                 transaction.tx
             )
         })?;
