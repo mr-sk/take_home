@@ -61,8 +61,14 @@ fn handle_deposit(
 ) -> Result<(), String> {
     let amount = transaction
         .amount
+        .filter(|a| a.scale() <= 4) // Add this line - reject > 4 decimal places
         .filter(|a| *a > Decimal::ZERO) // Don't allow zero deposit
-        .ok_or_else(|| format!("Deposit tx:{} must have a valid amount", transaction.tx))?;
+        .ok_or_else(|| {
+            format!(
+                "Deposit transction:{} must have a valid amount up to four decimals",
+                transaction.tx
+            )
+        })?;
 
     if transactions.contains_key(&transaction.tx) {
         return Err(format!("Duplicate transaction ID: {}", transaction.tx));
@@ -90,8 +96,14 @@ fn handle_withdrawal(
 ) -> Result<(), String> {
     let amount = transaction
         .amount
+        .filter(|a| a.scale() <= 4) // Reject more than 4 decimal places
         .filter(|a| *a > Decimal::ZERO) // Don't allow zero withdrawal
-        .ok_or_else(|| format!("Withdrawal tx:{} must have a valid amount", transaction.tx))?;
+        .ok_or_else(|| {
+            format!(
+                "Deposit transaction:{} must have a valid amount up to four decimals",
+                transaction.tx
+            )
+        })?;
 
     let account = accounts.get_mut(&transaction.client).ok_or_else(|| {
         format!(
